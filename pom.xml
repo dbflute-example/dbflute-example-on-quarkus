@@ -28,6 +28,7 @@
         <surefire-plugin.version>3.2.5</surefire-plugin.version>
 				
 		<!-- Partner Library -->
+        <guice.version>7.0.0</guice.version>
 
 		<!-- GoodNeighbor Library -->
 		
@@ -260,6 +261,11 @@
 		<!-- = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = -->
 		<!--                                                               Partner Library -->
 		<!--                                                               = = = = = = = = -->
+		<dependency>
+			<groupId>com.google.inject</groupId>
+			<artifactId>guice</artifactId>
+			<version>${guice.version}</version>
+		</dependency>
 
 		<!-- = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = -->
 		<!--                                                          GoodNeighbor Library -->
