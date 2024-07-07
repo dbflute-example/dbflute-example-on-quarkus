@@ -73,3 +73,89 @@ apiプロジェクトで、Quarkusアプリケーションを実装するよう�
 ; targetContainer = guice
 ```
 
+## DBFluteのBehaviorのインスタンスをGuiceでDIし、CDIに渡すProviderを実装する
+
+`common` プロジェクトにて、`DBFluteBehaviorProducer`クラスを実装します。（名前は何でも良いです）
+
+このクラスでは、以下のように「Google Guiceの @Inject」を使い、GuiceでDBFluteのBehaviorをDIします。
+
+そして、それをCDIに渡すためのProducerメソッドを実装します。
+
+```
+package org.docksidestage.di;
+
+import com.google.inject.Inject;
+import jakarta.enterprise.context.ApplicationScoped;
+import org.docksidestage.dbflute.exbhv.*;
+
+public class DBFluteBehaviorProducer {
+
+  @Inject MemberBhv memberBhv;
+
+  ...
+
+  @ApplicationScoped
+  public MemberBhv getMemberBhv() {
+    return GuiceComponents.find(this.getClass()).memberBhv;
+  }
+  ...
+```
+※ @com.google.inject.Injectを使用している点に注意してください。
+
+
+合わせて、上記で使用している `GuiceComponents` クラスも実装します。
+
+また、`api` プロジェクト（Quarkusアプリケーションの起動プロジェクト）にて、
+`DBFInitializer`クラスを実装します。（名前は何でも良いです）
+
+
+```
+...
+import jakarta.inject.Inject;
+
+@ApplicationScoped
+public class DBFInitializer {
+
+    Logger logger;
+
+    AgroalDataSource dataSource;
+
+    @Inject
+    public DBFInitializer(Logger logger, AgroalDataSource dataSource) {
+        this.logger = logger;
+        this.dataSource = dataSource;
+    }
+
+    void onStart(@Observes StartupEvent ev) {
+        // DBFluteのDI設定
+        GuiceComponents.acceptInjector(Guice.createInjector(new DBFluteModule(dataSource)));
+    }
+}
+```
+※ @jakarta.inject.Injectを使用している点に注意してください。
+
+
+`StartupEvent`を定義しているため、Quarkusアプリケーション起動時にこのコードが実行されます。
+
+その中で、DBFluteModuleをセットアップし、前述のGuiceでのDIとCDIへの受け渡しを実行します。
+
+以上の対応により、Quarkus上でDBFluteのBehaviorをDIすることができます。
+
+
+## (補足) DBFluteBehaviorProducerの実装について
+
+前述の `DBFluteBehaviorProducer` クラスは、DI対象とする全てのBehaviorクラスについて、実装を行う必要があります。
+
+DB変更により、テーブルの追加・削除が発生した場合には、
+`DBFluteBehaviorProducer`も合わせて修正を行う必要があります。
+
+このサンプルでは、 `replace-schema-10-basic.sql` のDDL定義から、
+自動で`DBFluteBehaviorProducer`クラスを生成するテストケースを実装しています。
+
+`common` プロジェクトの `DBFluteDIClassGenerator` クラスが該当のテストクラスです。
+ユニットテストを実行すると、DDLの定義に合わせて ``DBFluteBehaviorProducer`クラスが生成されます。
+
+DBFlute公式でサポートしているものではなく、サンプルのおまけ的なクラスとなりますので、
+利用したい方は実装を確認の上、ご利用ください。
+
+
