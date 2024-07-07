@@ -11,7 +11,7 @@ Can boot it by example of DBFlute on Quarkus:
 1. git clone https://github.com/dbflute-example/dbflute-example-on-quarkus.git
 2. prepare your own MySQL as 3306 port (and the root user has empty password) *A
 3. make schema by ReplaceSchema at DBFlute client directory 'dbflute_maihamadb' *B
-4. compile it by Java8, on e.g. Eclipse or IntelliJ or ... as Maven project
+4. compile it by Java21, on e.g. Eclipse or IntelliJ or ... as Maven project
 
 TODO jflute write how to boot  
 //4. execute the *main() method of (org.docksidestage.boot) HarborBoot  
@@ -34,6 +34,10 @@ dbflute_maihamadb
 // and select replace-schema in displayed menu
 ...:dbflute_maihamadb ...$ sh manage.sh
 ```
+
+5. Run `./start.sh` to launch the Quarkus application.
+6. Access to Swagger UI.  
+   http://localhost:8080/q/dev-ui/io.quarkus.quarkus-smallrye-openapi/swagger-ui
 
 # Information
 ## License
@@ -73,3 +77,170 @@ apiプロジェクトで、Quarkusアプリケーションを実装するよう�
 ; targetContainer = guice
 ```
 
+## DBFluteのBehaviorのインスタンスをDIできるようにする
+
+### Producerクラスを実装する
+`common` プロジェクトにて、`DBFluteBehaviorProducer`クラスを実装します。（名前は何でも良いです）
+
+このクラスでは、以下のように「Google Guiceの @Inject」を使い、GuiceでDBFluteのBehaviorをDIします。
+
+そして、それをCDIに渡すためのProducerメソッドを実装します。
+
+```
+package org.docksidestage.di;
+
+import com.google.inject.Inject;
+import jakarta.enterprise.context.ApplicationScoped;
+import org.docksidestage.dbflute.exbhv.*;
+
+public class DBFluteBehaviorProducer {
+
+  @Inject MemberBhv memberBhv;
+
+  ...
+
+  @ApplicationScoped
+  public MemberBhv getMemberBhv() {
+    return GuiceComponents.find(this.getClass()).memberBhv;
+  }
+  ...
+```
+※ @com.google.inject.Injectを使用している点に注意してください。
+
+
+合わせて、上記で使用している `GuiceComponents` クラスも実装します。
+
+### Quarkusアプリケーション起動時にDBFluteをセットアップする
+また、`api` プロジェクト（Quarkusアプリケーションの起動プロジェクト）にて、
+`DBFInitializer`クラスを実装します。（名前は何でも良いです）
+
+
+```
+...
+import jakarta.inject.Inject;
+
+@ApplicationScoped
+public class DBFInitializer {
+
+    Logger logger;
+
+    AgroalDataSource dataSource;
+
+    @Inject
+    public DBFInitializer(Logger logger, AgroalDataSource dataSource) {
+        this.logger = logger;
+        this.dataSource = dataSource;
+    }
+
+    void onStart(@Observes StartupEvent ev) {
+        // DBFluteのDI設定
+        GuiceComponents.acceptInjector(Guice.createInjector(new DBFluteModule(dataSource)));
+    }
+}
+```
+※ @jakarta.inject.Injectを使用している点に注意してください。
+
+
+`StartupEvent`を定義しているため、Quarkusアプリケーション起動時にこのコードが実行されます。
+
+その中で、DBFluteModuleをセットアップし、前述のGuiceでのDIとCDIへの受け渡しを実行します。
+
+### jandexでインデックスを生成する
+
+上記の対応だけだと、DI時にインスタンスが見つからずエラーとなる場合があります。
+`common` プロジェクトの `pom.xml` に、下記の `jandex-maven-plugin`を追加してください。
+
+これにより、インデックスが作成され、DIが正常に行われるようになります。
+
+```
+<build>
+    <plugins>
+        <!-- The entity classes need to be indexed -->
+        <plugin>
+            <groupId>io.smallrye</groupId>
+            <artifactId>jandex-maven-plugin</artifactId>
+            <executions>
+                <execution>
+                    <id>make-index</id>
+                    <goals>
+                        <goal>jandex</goal>
+                    </goals>
+                </execution>
+            </executions>
+        </plugin>
+    </plugins>
+</build>
+```
+
+以上の対応により、Quarkus上でDBFluteのBehaviorをDIすることができます。
+
+
+
+## (補足) DBFluteBehaviorProducerの実装について
+
+前述の `DBFluteBehaviorProducer` クラスは、DI対象とする全てのBehaviorクラスについて、実装を行う必要があります。
+
+DB変更により、テーブルの追加・削除が発生した場合には、
+`DBFluteBehaviorProducer`も合わせて修正を行う必要があります。
+
+このサンプルでは、 `replace-schema-10-basic.sql` のDDL定義から、
+自動で`DBFluteBehaviorProducer`クラスを生成するテストケースを実装しています。
+
+`common` プロジェクトの `DBFluteDIClassGenerator` クラスが該当のテストクラスです。
+ユニットテストを実行すると、DDLの定義に合わせて ``DBFluteBehaviorProducer`クラスが生成されます。
+
+DBFlute公式でサポートしているものではなく、サンプルのおまけ的なクラスとなりますので、
+利用したい方は実装を確認の上、ご利用ください。
+
+
+## 実際にBehaviorをDIしたい場合
+
+BehaviorをDIする場合には、通常のQuarkusの実装と同じく `jakarta.inject.Inject` を使用してDiを行います。
+
+`@com.google.inject.Inject`の方をインポートしないように注意してください。
+
+```
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+
+@Path("/sample")
+@ApplicationScoped
+public class SampleResource {
+
+    @Inject
+    MemberBhv memberBhv;
+
+    @GET
+    @Produces(MediaType.TEXT_PLAIN)
+    public String hello() {
+        return memberBhv.selectByPK(1).get().getMemberName();
+    }
+}
+```
+
+## （補足2） Native Imageについて
+
+Quarkusは Native Imageへのビルドに対応していますが、DBFluteを使用する場合には Native Imageビルドは行うことは出来ません。
+
+Native Iamgeにするためには、リフレクションを使用してはならず、
+それはDBFlute等のライブラリに関しても同様です。
+
+そのため、このサンプルでは、apiプロジェクトの `pom.xml` にて、  
+下記のように Native ImageビルドをOFFに設定しています。
+
+```
+<profiles>
+    <profile>
+        <id>native</id>
+        <activation>
+            <property>
+                <name>native</name>
+            </property>
+        </activation>
+        <properties>
+            <skipITs>false</skipITs>
+            <quarkus.native.enabled>false</quarkus.native.enabled>
+        </properties>
+    </profile>
+</profiles>
+```
