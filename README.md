@@ -73,8 +73,9 @@ apiプロジェクトで、Quarkusアプリケーションを実装するよう�
 ; targetContainer = guice
 ```
 
-## DBFluteのBehaviorのインスタンスをGuiceでDIし、CDIに渡すProviderを実装する
+## DBFluteのBehaviorのインスタンスをDIできるようにする
 
+### Producerクラスを実装する
 `common` プロジェクトにて、`DBFluteBehaviorProducer`クラスを実装します。（名前は何でも良いです）
 
 このクラスでは、以下のように「Google Guiceの @Inject」を使い、GuiceでDBFluteのBehaviorをDIします。
@@ -105,6 +106,7 @@ public class DBFluteBehaviorProducer {
 
 合わせて、上記で使用している `GuiceComponents` クラスも実装します。
 
+### Quarkusアプリケーション起動時にDBFluteをセットアップする
 また、`api` プロジェクト（Quarkusアプリケーションの起動プロジェクト）にて、
 `DBFInitializer`クラスを実装します。（名前は何でも良いです）
 
@@ -139,7 +141,35 @@ public class DBFInitializer {
 
 その中で、DBFluteModuleをセットアップし、前述のGuiceでのDIとCDIへの受け渡しを実行します。
 
+### jandexでインデックスを生成する
+
+上記の対応だけだと、DI時にインスタンスが見つからずエラーとなる場合があります。
+`common` プロジェクトの `pom.xml` に、下記の `jandex-maven-plugin`を追加してください。
+
+これにより、インデックスが作成され、DIが正常に行われるようになります。
+
+```
+<build>
+    <plugins>
+        <!-- The entity classes need to be indexed -->
+        <plugin>
+            <groupId>io.smallrye</groupId>
+            <artifactId>jandex-maven-plugin</artifactId>
+            <executions>
+                <execution>
+                    <id>make-index</id>
+                    <goals>
+                        <goal>jandex</goal>
+                    </goals>
+                </execution>
+            </executions>
+        </plugin>
+    </plugins>
+</build>
+```
+
 以上の対応により、Quarkus上でDBFluteのBehaviorをDIすることができます。
+
 
 
 ## (補足) DBFluteBehaviorProducerの実装について
