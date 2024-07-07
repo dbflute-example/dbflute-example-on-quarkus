@@ -189,3 +189,54 @@ DBFlute公式でサポートしているものではなく、サンプルのお�
 利用したい方は実装を確認の上、ご利用ください。
 
 
+## 実際にBehaviorをDIしたい場合
+
+BehaviorをDIする場合には、通常のQuarkusの実装と同じく `jakarta.inject.Inject` を使用してDiを行います。
+
+`@com.google.inject.Inject`の方をインポートしないように注意してください。
+
+```
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+
+@Path("/sample")
+@ApplicationScoped
+public class SampleResource {
+
+    @Inject
+    MemberBhv memberBhv;
+
+    @GET
+    @Produces(MediaType.TEXT_PLAIN)
+    public String hello() {
+        return memberBhv.selectByPK(1).get().getMemberName();
+    }
+}
+```
+
+## （補足2） Native Imageについて
+
+Quarkusは Native Imageへのビルドに対応していますが、DBFluteを使用する場合には Native Imageビルドは行うことは出来ません。
+
+Native Iamgeにするためには、リフレクションを使用してはならず、
+それはDBFlute等のライブラリに関しても同様です。
+
+そのため、このサンプルでは、apiプロジェクトの `pom.xml` にて、  
+下記のように Native ImageビルドをOFFに設定しています。
+
+```
+<profiles>
+    <profile>
+        <id>native</id>
+        <activation>
+            <property>
+                <name>native</name>
+            </property>
+        </activation>
+        <properties>
+            <skipITs>false</skipITs>
+            <quarkus.native.enabled>false</quarkus.native.enabled>
+        </properties>
+    </profile>
+</profiles>
+```
