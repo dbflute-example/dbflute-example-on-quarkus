@@ -29,4 +29,26 @@ public class Product extends BsProduct {
 
     /** The serial version UID for object serialization. (Default) */
     private static final long serialVersionUID = 1L;
+
+    /** PURCHASE_COUNT: Derived Referrer Alias. */
+    public static final String ALIAS_purchaseCount = "PURCHASE_COUNT";
+
+    /** PURCHASE_COUNT: (Derived Referrer) */
+    protected Integer _purchaseCount;
+
+    /**
+     * [get] PURCHASE_COUNT: (Derived Referrer)
+     * @return The value of the column 'PURCHASE_COUNT'. (NullAllowed)
+     */
+    public Integer getPurchaseCount() {
+        return _purchaseCount;
+    }
+
+    /**
+     * [set] PURCHASE_COUNT: (Derived Referrer)
+     * @param purchaseCount The value of the column 'PURCHASE_COUNT'. (NullAllowed)
+     */
+    public void setPurchaseCount(Integer purchaseCount) {
+        _purchaseCount = purchaseCount;
+    }
 }
