@@ -31,7 +31,8 @@ public class SearchPagingResult<BEAN> {
 
     /** paging data for current page */
     @NotNull
-    public final List<@Valid BEAN> rows;
+    @Valid
+    public final List<BEAN> rows;
 
     public SearchPagingResult(PagingResultBean<? extends Entity> page, List<BEAN> rows) {
         this.pageSize = page.getPageSize();

@@ -34,7 +34,7 @@ public class ProductController {
     @GET
     @Path("/")
     @Produces(MediaType.APPLICATION_JSON)
-    public SearchPagingResult<ProductRowResult> search(@BeanParam @Valid ProductSearchBody form) {
+    public @Valid SearchPagingResult<ProductRowResult> search(@BeanParam @Valid ProductSearchBody form) {
         var page = selectProductPage(form.page, form);
         var items = page.stream().map(product -> {
             return mappingToBean(product);
