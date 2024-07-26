@@ -57,7 +57,7 @@ public class AuthController {
     JWTParser jwtParser;
 
     @Inject
-    Config congfig;
+    Config config;
 
     @POST
     @Path("/signin")
@@ -89,7 +89,7 @@ public class AuthController {
     }
 
     private String issueJwt(Member member) {
-        return Jwt.issuer(congfig.getValue("mp.jwt.verify.issuer", String.class))
+        return Jwt.issuer(config.getValue("mp.jwt.verify.issuer", String.class))
                 .expiresAt(LocalDateTime.now().plusMonths(1).toInstant(ZoneOffset.UTC)) // 有効期限を30日後に設定
                 .upn(member.getMemberId().toString()) //
                 .claim("name", member.getMemberName())
